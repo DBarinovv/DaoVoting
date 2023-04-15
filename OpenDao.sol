@@ -27,8 +27,7 @@ contract OpenDAO {
         
         Proposal storage prop = proposals[msg.sender][numProposals[msg.sender]];
         prop.creator = msg.sender;
-        prop.description = _description;
-        
+        prop.description = _description;  
         numProposals[msg.sender]++;
     }
     
