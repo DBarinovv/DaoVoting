@@ -11,15 +11,15 @@ contract AnonymousDao {
         mapping(address => bool) voted;
     }
     
-    uint numRequests;
+    uint256 numRequests;
     mapping(uint256 => Proposal) public proposals;
     mapping(address => bool) public isVoter;
-    mapping(address => uint) public tokenBalance;
+    mapping(address => uint256) public tokenBalance;
 
     address public governorTokenAddress;
     uint256 public minimumTokensToVote;
     
-    constructor(address _governorTokenAddress, uint _minimumTokensToVote) {
+    constructor(address _governorTokenAddress, uint256 _minimumTokensToVote) {
         governorTokenAddress = _governorTokenAddress;
         minimumTokensToVote = _minimumTokensToVote;
     }
@@ -33,7 +33,7 @@ contract AnonymousDao {
         numRequests++;
     }
     
-    function vote(uint proposalId, bool choice) public {
+    function vote(uint256 proposalId, bool choice) public {
         require(isVoter[msg.sender], "Only voters can vote");
         require(proposalId < numRequests, "Invalid proposal index");
         require(!proposals[proposalId].voted[msg.sender], "You have already voted for this proposal");
@@ -48,7 +48,7 @@ contract AnonymousDao {
         }
     }
     
-    function addVoter(address voter, uint tokens) public {
+    function addVoter(address voter, uint256 tokens) public {
         require(msg.sender == governorTokenAddress, "Only governor token contract can add voters");
         
         isVoter[voter] = true;
@@ -62,11 +62,11 @@ contract AnonymousDao {
         tokenBalance[voter] = 0;
     }
     
-    function getProposalCount() public view returns (uint) {
+    function getProposalCount() public view returns (uint256) {
         return numRequests;
     }
     
-    function getProposal(uint index) public view returns (address, string memory, uint, uint) {
+    function getProposal(uint256 index) public view returns (address, string memory, uint256, uint256) {
         require(index < numRequests, "Invalid proposal index");
         Proposal storage prop = proposals[index];
         return (prop.creator, prop.description, prop.yesVotes, prop.noVotes);
