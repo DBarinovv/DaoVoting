@@ -21,48 +21,48 @@ contract OpenDAO {
         minimumTokensToVote = _minimumTokensToVote;
     }
     
-    function createProposal(string memory _description) public {
+    function createProposal(string memory description) public {
         require(tokenBalances[msg.sender] > 0, "You do not have any tokens to vote with.");
         require(tokenBalances[msg.sender] >= minimumTokensToVote, "You do not have enough tokens to create a proposal.");
         
         Proposal storage prop = proposals[msg.sender][numProposals[msg.sender]];
         prop.creator = msg.sender;
-        prop.description = _description;  
+        prop.description = description;  
         numProposals[msg.sender]++;
     }
     
-    function vote(address _creator, uint256 _proposalId, bool _for) public {
+    function vote(address creator, uint256 proposalId, bool choice) public {
         require(tokenBalances[msg.sender] > 0, "You do not have any tokens to vote with.");
-        require(!proposals[_creator][_proposalId].voted[msg.sender], "You have already voted in this proposal.");
+        require(!proposals[creator][proposalId].voted[msg.sender], "You have already voted in this proposal.");
         
         uint256 tokenBalance = tokenBalances[msg.sender];
-        proposals[_creator][_proposalId].voted[msg.sender] = true;
+        proposals[creator][proposalId].voted[msg.sender] = true;
         
-        if (_for) {
-            proposals[_creator][_proposalId].yesVotes += tokenBalance;
+        if (choice) {
+            proposals[creator][proposalId].yesVotes += tokenBalance;
         } else {
-            proposals[_creator][_proposalId].noVotes += tokenBalance;
+            proposals[creator][proposalId].noVotes += tokenBalance;
         }
     }
     
-    function addTokens(uint256 _numTokens) public {
-        tokenBalances[msg.sender] += _numTokens;
-        totalTokens += _numTokens;
+    function addTokens(uint256 numTokens) public {
+        tokenBalances[msg.sender] += numTokens;
+        totalTokens += numTokens;
     }
     
-    function removeTokens(uint256 _numTokens) public {
-        require(tokenBalances[msg.sender] >= _numTokens, "You do not have enough tokens to remove.");
+    function removeTokens(uint256 numTokens) public {
+        require(tokenBalances[msg.sender] >= numTokens, "You do not have enough tokens to remove.");
         
-        tokenBalances[msg.sender] -= _numTokens;
-        totalTokens -= _numTokens;
+        tokenBalances[msg.sender] -= numTokens;
+        totalTokens -= numTokens;
     }
     
-    function getProposal(address _creator, uint256 _proposalId) public view returns (string memory) {
-        return proposals[_creator][_proposalId].description;
+    function getProposal(address creator, uint256 proposalId) public view returns (string memory) {
+        return proposals[creator][proposalId].description;
     }
     
-    function getVotes(address _creator, uint256 _proposalId) public view returns (uint256, uint256) {
-        Proposal storage proposal = proposals[_creator][_proposalId];
+    function getVotes(address _creator, uint256 proposalId) public view returns (uint256, uint256) {
+        Proposal storage proposal = proposals[_creator][proposalId];
         return (proposal.yesVotes, proposal.noVotes);
     }
 }

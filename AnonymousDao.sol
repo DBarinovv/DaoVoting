@@ -24,26 +24,27 @@ contract AnonymousDao {
         minimumTokensToVote = _minimumTokensToVote;
     }
     
-    function createProposal(string memory _description) public {
+    function createProposal(string memory description) public {
         require(isVoter[msg.sender], "Only voters can create proposals");
 
-        Proposal storage prop = proposals[numRequests++];
+        Proposal storage prop = proposals[numRequests];
         prop.creator = msg.sender;
-        prop.description = _description;
+        prop.description = description;
+        numRequests++;
     }
     
-    function vote(uint proposalIndex, bool choice) public {
+    function vote(uint proposalId, bool choice) public {
         require(isVoter[msg.sender], "Only voters can vote");
-        require(proposalIndex < numRequests, "Invalid proposal index");
-        require(!proposals[proposalIndex].voted[msg.sender], "You have already voted for this proposal");
+        require(proposalId < numRequests, "Invalid proposal index");
+        require(!proposals[proposalId].voted[msg.sender], "You have already voted for this proposal");
         require(tokenBalance[msg.sender] >= minimumTokensToVote, "You do not have enough tokens to vote");
         
-        proposals[proposalIndex].voted[msg.sender] = true;
+        proposals[proposalId].voted[msg.sender] = true;
         
         if (choice) {
-            proposals[proposalIndex].yesVotes += tokenBalance[msg.sender];
+            proposals[proposalId].yesVotes += tokenBalance[msg.sender];
         } else {
-            proposals[proposalIndex].noVotes += tokenBalance[msg.sender];
+            proposals[proposalId].noVotes += tokenBalance[msg.sender];
         }
     }
     
