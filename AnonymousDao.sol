@@ -1,74 +1,123 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-contract AnonymousDao {
-    
-    struct Proposal {
-        address creator;
-        string description;
-        uint256 yesVotes;
-        uint256 noVotes;
-        mapping(address => bool) voted;
-    }
-    
-    uint256 numRequests;
-    mapping(uint256 => Proposal) public proposals;
-    mapping(address => bool) public isVoter;
-    mapping(address => uint256) public tokenBalance;
+import "@openzeppelin/contracts/governance/Governor.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-    address public governorTokenAddress;
-    uint256 public minimumTokensToVote;
-    
-    constructor(address _governorTokenAddress, uint256 _minimumTokensToVote) {
-        governorTokenAddress = _governorTokenAddress;
-        minimumTokensToVote = _minimumTokensToVote;
-    }
-    
-    function createProposal(string memory description) public {
-        require(isVoter[msg.sender], "Only voters can create proposals");
+contract AnonymousGovernor is Governor {
+    IERC20 public token;
 
-        Proposal storage prop = proposals[numRequests];
-        prop.creator = msg.sender;
-        prop.description = description;
-        numRequests++;
+    mapping(uint256 => uint256) private _forVotes;
+    mapping(uint256 => uint256) private _againstVotes;
+    mapping(uint256 => mapping(address => bool)) private _voted;
+
+    uint256 private _votingDelay;
+    uint256 private _votingPeriod;
+
+    event ProposalCreated(uint256 indexed proposalId);
+
+    constructor(
+        IERC20 token_,
+        string memory name,
+        uint256 votingDelay_,
+        uint256 votingPeriod_
+    ) Governor(name) {
+        token = token_;
+        _votingDelay = votingDelay_;
+        _votingPeriod = votingPeriod_;
     }
-    
-    function vote(uint256 proposalId, bool choice) public {
-        require(isVoter[msg.sender], "Only voters can vote");
-        require(proposalId < numRequests, "Invalid proposal index");
-        require(!proposals[proposalId].voted[msg.sender], "You have already voted for this proposal");
-        require(tokenBalance[msg.sender] >= minimumTokensToVote, "You do not have enough tokens to vote");
-        
-        proposals[proposalId].voted[msg.sender] = true;
-        
-        if (choice) {
-            proposals[proposalId].yesVotes += tokenBalance[msg.sender];
+
+    function createProposal(
+        string memory description,
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory calldatas
+    ) public returns (uint256) {
+        uint256 proposalId = propose(targets, values, calldatas, description);
+        emit ProposalCreated(proposalId);
+        return proposalId;
+    }
+
+    function vote(
+        uint256 proposalId,
+        bool support,
+        bytes32 messageHash,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public {
+        require(!_voted[proposalId][msg.sender], "Already voted.");
+
+        // Verify the blind signature
+        require(
+            verifyBlindSignature(msg.sender, messageHash, v, r, s),
+            "Invalid blind signature."
+        );
+
+        uint256 weight = token.balanceOf(msg.sender);
+
+        if (support) {
+            _forVotes[proposalId] += weight;
         } else {
-            proposals[proposalId].noVotes += tokenBalance[msg.sender];
+            _againstVotes[proposalId] += weight;
         }
+
+        _voted[proposalId][msg.sender] = true;
     }
-    
-    function addVoter(address voter, uint256 tokens) public {
-        require(msg.sender == governorTokenAddress, "Only governor token contract can add voters");
-        
-        isVoter[voter] = true;
-        tokenBalance[voter] = tokens;
+
+    function getVotes(uint256 proposalId)
+        public
+        view
+        returns (uint256 forVotes, uint256 againstVotes)
+    {
+        return (_forVotes[proposalId], _againstVotes[proposalId]);
     }
-    
-    function removeVoter(address voter) public {
-        require(msg.sender == governorTokenAddress, "Only governor token contract can remove voters");
-        
-        isVoter[voter] = false;
-        tokenBalance[voter] = 0;
+
+    function verifyBlindSignature(
+        address voter,
+        bytes32 messageHash,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) internal pure returns (bool) {
+        // Recover signer's address from the provided signature
+        address signer = ecrecover(messageHash, v, r, s);
+
+        // Check if the signer's address matches the voter's address
+        return signer == voter;
     }
-    
-    function getProposalCount() public view returns (uint256) {
-        return numRequests;
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(Governor)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
     }
-    
-    function getProposal(uint256 index) public view returns (address, string memory, uint256, uint256) {
-        require(index < numRequests, "Invalid proposal index");
-        Proposal storage prop = proposals[index];
-        return (prop.creator, prop.description, prop.yesVotes, prop.noVotes);
+
+    function state(uint256 proposalId)
+        public
+        view
+        virtual
+        override(Governor)
+        returns (ProposalState)
+    {
+        return super.state(proposalId);
+    }
+
+    function quorum(uint256 blockNumber)
+        public
+        view
+        virtual
+        override(Governor)
+        returns (uint256)
+    {
+        return token.totalSupply() / 2;
+    }
+
+    function votingDelay() public view virtual override(Governor) returns (uint256) {
+        return _votingDelay;
     }
 }
